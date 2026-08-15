@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Compra Rápida</title>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 720px; margin: 40px auto; padding: 0 16px; background: #f7f7fb; color: #1f2937; }
+        .card { background: white; border-radius: 16px; padding: 24px; box-shadow: 0 8px 30px rgba(15, 23, 42, 0.08); }
+        .error { background: #fef2f2; border: 1px solid #fecaca; color: #b91c1c; padding: 12px 14px; border-radius: 10px; margin-bottom: 16px; }
+        .success { background: #ecfdf5; border: 1px solid #a7f3d0; color: #047857; padding: 12px 14px; border-radius: 10px; margin-bottom: 16px; }
+        button { background: #f59e0b; color: white; border: 0; padding: 12px 18px; border-radius: 10px; cursor: pointer; font-weight: 700; }
+        button:hover { background: #d97706; }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <h1>Compra Rápida</h1>
+        {% if mensaje_exito %}
+            <div class="success">{{ mensaje_exito }}</div>
+        {% endif %}
+        {% if error %}
+            <div class="error">{{ error }}</div>
+        {% endif %}
+
+        <p>Libro: <strong>{{ libro.titulo }}</strong></p>
+        <p>Precio final con IVA: <strong>${{ total }}</strong></p>
+
+        <form method="post">
+            {% csrf_token %}
+            <button type="submit">Comprar ya</button>
+        </form>
+    </div>
+</body>
+</html>
