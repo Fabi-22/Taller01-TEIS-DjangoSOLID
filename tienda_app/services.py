@@ -47,3 +47,21 @@ class CompraService(CompraRapidaService):
 
     def ejecutar_compra(self, libro_id, cantidad=1, direccion="", usuario=None):
         return self.procesar(libro_id, cantidad=cantidad, direccion=direccion, usuario=usuario)
+
+    def ejecutar_proceso_compra(self, usuario, lista_productos, direccion):
+        """Compra de un carrito con múltiples productos (Tutorial 02, Paso 3)."""
+        # Uso del Builder: semántica clara y validación interna
+        orden = (
+            self.builder
+            .con_usuario(usuario)
+            .con_productos(lista_productos)
+            .para_envio(direccion)
+            .build()
+        )
+
+        # Uso del Factory (inyectado): cambio de comportamiento sin cambio de código
+        if self.procesador_pago.pagar(orden.total):
+            return f"Orden {orden.id} procesada exitosamente."
+
+        orden.delete()
+        raise Exception("Error en la pasarela de pagos.")

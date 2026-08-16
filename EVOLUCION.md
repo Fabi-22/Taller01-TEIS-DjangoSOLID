@@ -101,5 +101,34 @@ Componentes de apoyo:
 - `infra/factories.py` → `PaymentFactory` (resuelve la dependencia
   concreta del procesador de pago sin acoplar la vista a ella).
 
-Este es el código evaluado en la entrega: el log de auditoría y el
-resumen de `services.py`/`views.py` (ver [`README.md`](README.md)).
+Este es el código evaluado en la entrega de Tutorial01: el log de auditoría y
+el resumen de `services.py`/`views.py` (ver [`README.md`](README.md)).
+
+## Tutorial02: Patrones Creacionales (Factory Method y Builder)
+
+Sobre esta misma arquitectura, el Tutorial02 optimiza la creación de objetos:
+
+- **Factory Method** (`infra/factories.py`) — `PaymentFactory.get_processor()`
+  ya no devuelve siempre `BancoNacionalProcesador`: lee la variable de entorno
+  `PAYMENT_PROVIDER` y, si vale `MOCK`, entrega un `MockPaymentProcessor` que
+  no cobra de verdad y solo imprime `[DEBUG] Mock Payment: ...`. La vista
+  sigue sin saber cuál implementación recibe — sigue dependiendo solo de la
+  abstracción `ProcesadorPago` (DIP), pero ahora el comportamiento se puede
+  cambiar desde la terminal o desde variables de entorno de Docker, sin tocar
+  código.
+
+- **Builder** (`domain/builders.py`) — `OrdenBuilder` se extendió para
+  soportar, además del flujo original de un solo libro (`con_libro` +
+  `con_cantidad`, usado por Compra Rápida), un flujo de carrito con varios
+  productos (`con_productos`), sumando los precios y aplicando el IVA en un
+  único lugar. Ambos flujos comparten la misma interfaz fluida
+  (`con_usuario().con_productos(...).para_envio(...).build()`), lo que evita
+  repetir la lógica de cálculo y validación en cada vista.
+
+- **Service Layer** (`services.py`) — `CompraService.ejecutar_proceso_compra`
+  agrega el flujo de compra multi-producto descrito en el tutorial, expuesto
+  en `/tienda/api/v1/comprar-carrito/` (`CarritoCompraAPIView`).
+
+Entregables de Tutorial02: captura de consola en modo `MOCK`, código de
+`infra/factories.py` y `domain/builders.py`, y la reflexión sobre el
+`OrdenBuilder` (ver `README.md`).
