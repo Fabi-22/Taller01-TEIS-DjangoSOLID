@@ -6,6 +6,13 @@ el tutorial "Evolución de Arquitectura en Django" (TEIS / AdS 2026).
 
 **Autora:** Fabiola Valencia
 
+## Evolución de la arquitectura
+
+Este repo corresponde al estado final (Service Layer) del tutorial. La
+evolución completa —de función espagueti a CBV y luego a Service Layer,
+con las violaciones SOLID señaladas en cada paso— está documentada en
+[`EVOLUCION.md`](EVOLUCION.md).
+
 ## Arquitectura
 
 La lógica de negocio está desacoplada de la vista y organizada en capas:
