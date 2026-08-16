@@ -40,6 +40,7 @@ class OrdenBuilder:
         orden = Orden.objects.create(
             usuario=self._usuario,
             libro=self._libro,
+            cantidad=self._cantidad,
             total=total,
             direccion_envio=self._direccion,
         )
