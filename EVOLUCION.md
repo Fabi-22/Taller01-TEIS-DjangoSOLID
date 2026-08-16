@@ -132,3 +132,42 @@ Sobre esta misma arquitectura, el Tutorial02 optimiza la creación de objetos:
 Entregables de Tutorial02: captura de consola en modo `MOCK`, código de
 `infra/factories.py` y `domain/builders.py`, y la reflexión sobre el
 `OrdenBuilder` (ver `README.md`).
+
+## Tutorial03: API REST con Django Rest Framework
+
+De "monolito HTML" a "backend headless": se agrega una capa de API que
+**reutiliza la Capa de Servicio existente**, sin duplicar lógica de negocio.
+
+- **Instalación** — se agregó `djangorestframework`, `markdown` y
+  `django-filter` a `requirements.txt`, y `'rest_framework'` /
+  `'django_filters'` a `INSTALLED_APPS` en `config/settings.py`.
+
+- **Adapter / Serializers** (`api/serializers.py`) — `LibroSerializer`
+  (`ModelSerializer`) expone `id`, `titulo`, `precio` y `stock_actual` (una
+  `@property` nueva en el modelo `Libro` que delega en `Inventario`, sin
+  duplicar el dato). `OrdenInputSerializer` (`Serializer` plano, DTO) valida
+  `libro_id` y `direccion_envio` antes de tocar la base de datos.
+
+- **API View / Controlador** (`api/views.py`) — `CompraAPIView` se reescribió
+  como `rest_framework.views.APIView`: valida con `OrdenInputSerializer`,
+  obtiene el gateway de pago con `PaymentFactory` (Tutorial02) y ejecuta
+  `CompraService.ejecutar_compra(...)` — **el mismo método que ya usaba**
+  `CompraRapidaView` para las compras por HTML. Responde `201` en éxito,
+  `400` si el payload es inválido, `409` si es un error de negocio (ej. sin
+  stock) y `500` ante un error inesperado. Se agregó también
+  `LibroListAPIView` (`GET /api/v1/libros/`) para poder verificar el
+  `stock_actual` por API.
+
+- **Prueba de que HTML y API son la misma lógica** — se agregó
+  `stock_actual` a la plantilla `compra_rapida.html` y se corrigió
+  `CompraRapidaView.post()` para volver a incluir el libro en el contexto
+  tras una compra exitosa (antes solo devolvía el mensaje). Así, comprar por
+  `/tienda/api/v1/comprar/` descuenta el mismo `Inventario` que se ve al
+  visitar `/tienda/compra-rapida/<id>/` en el navegador, y ambos caminos
+  generan la misma entrada en `pagos_locales_fabiola_valencia.log` vía
+  `BancoNacionalProcesador` — la prueba de que HTML y API son dos "puertas"
+  hacia la misma "habitación" (la Capa de Servicio).
+
+Entregables de Tutorial03: el log de auditoría mostrando una compra hecha
+por API, y una captura de un `POST` real a `/api/v1/comprar/` desde la
+Browsable API de DRF o Postman (ver `README.md`).

@@ -1,12 +1,13 @@
-# TEIS - DjangoSOLID · Tutorial01 + Tutorial02
+# TEIS - DjangoSOLID · Tutorial01 + Tutorial02 + Tutorial03
 
 Proyecto Django que implementa la funcionalidad de **Compra Rápida** aplicando
-principios **SOLID**, **Class-Based Views (CBV)**, un **Service Layer** y los
-patrones creacionales **Factory Method** y **Builder**, según los tutoriales
-"Evolución de Arquitectura en Django" y "Patrones Creacionales en Django"
-(TEIS / AdS 2026). Ambos tutoriales viven en este mismo repositorio: el
-segundo evoluciona directamente el código del primero (misma arquitectura
-`domain`/`infra`/`services`).
+principios **SOLID**, **Class-Based Views (CBV)**, un **Service Layer**, los
+patrones creacionales **Factory Method** y **Builder**, y una capa de **API
+REST con Django Rest Framework (DRF)**, según los tutoriales "Evolución de
+Arquitectura en Django", "Patrones Creacionales en Django" e "Introducción a
+APIs con DRF" (TEIS / AdS 2026). Los tres tutoriales viven en este mismo
+repositorio: cada uno evoluciona directamente el código del anterior (misma
+arquitectura `domain`/`infra`/`services`/`api`).
 
 **Autora:** Fabiola Valencia
 
@@ -35,9 +36,10 @@ tienda_app/
 │   ├── gateways.py           # BancoNacionalProcesador (implementación concreta de pago)
 │   └── factories.py          # PaymentFactory + MockPaymentProcessor (Factory Method, Docker-ready vía PAYMENT_PROVIDER)
 ├── api/
-│   └── views.py              # CompraAPIView y CarritoCompraAPIView (endpoints JSON del Service Layer)
+│   ├── serializers.py         # LibroSerializer (Adapter) y OrdenInputSerializer (DTO de entrada)
+│   └── views.py               # CompraAPIView (DRF), CarritoCompraAPIView y LibroListAPIView
 └── templates/tienda_app/
-    └── compra_rapida.html
+    └── compra_rapida.html      # ahora también muestra el stock_actual del libro
 ```
 
 **Principios aplicados:**
@@ -81,8 +83,9 @@ python manage.py runserver
 |---|---|---|
 | `/tienda/compra-rapida/<libro_id>/` | `CompraRapidaView` | Muestra el detalle del producto (GET) y procesa la compra (POST) |
 | `/tienda/compra/<libro_id>/` | `CompraView` | Alias de `CompraRapidaView` |
-| `/tienda/api/v1/comprar/` | `CompraAPIView` | Endpoint JSON (POST) para procesar una compra de un solo libro |
+| `/tienda/api/v1/comprar/` | `CompraAPIView` (DRF) | Endpoint REST (POST) para procesar una compra de un solo libro. Payload: `{"libro_id": 1, "direccion_envio": "Calle 123"}`. Navegable desde el navegador (Browsable API de DRF) o desde Postman |
 | `/tienda/api/v1/comprar-carrito/` | `CarritoCompraAPIView` | Endpoint JSON (POST) para procesar una compra con varios productos (`{"libro_ids": [...], "direccion": "..."}`), requiere usuario autenticado |
+| `/tienda/api/v1/libros/` | `LibroListAPIView` (DRF) | Endpoint REST (GET) con el catálogo y su `stock_actual`, para verificar por API que el inventario cambió |
 | `/admin/` | Django Admin | Administración de `Libro`, `Inventario`, `Orden` |
 
 ## Patrones creacionales (Tutorial02)
@@ -107,6 +110,34 @@ python manage.py runserver
   centralizando el cálculo de subtotal + IVA y la validación de datos
   mínimos antes de crear el registro en base de datos.
 
+## API REST con DRF (Tutorial03)
+
+`CompraAPIView` (`tienda_app/api/views.py`) es un `rest_framework.views.APIView`
+que **reutiliza el mismo `CompraService`** que ya usa la vista HTML de Compra
+Rápida — la lógica de negocio no se duplica, solo cambia quién la llama
+(demuestra que HTML y API son dos "puertas" a la misma "habitación", la Capa
+de Servicio):
+
+- **Adapter** (`api/serializers.py`) — `OrdenInputSerializer` valida la
+  entrada (`libro_id`, `direccion_envio`) como un DTO; `LibroSerializer`
+  transforma `Libro` (incluido `stock_actual`, una propiedad calculada a
+  partir de `Inventario`) a JSON.
+- **Factory** — igual que en Tutorial02, `PaymentFactory.get_processor()`
+  decide el procesador de pago según `PAYMENT_PROVIDER`.
+- **Service Layer** — `servicio.ejecutar_compra(...)` es exactamente el
+  mismo método que usa `CompraRapidaView`.
+- Respuestas: `201` (compra exitosa), `400` (payload inválido), `409`
+  (error de negocio, ej. sin stock), `500` (error inesperado).
+
+Para probarlo desde el navegador (Browsable API de DRF) o desde Postman:
+
+```
+POST http://127.0.0.1:8000/tienda/api/v1/comprar/
+Content-Type: application/json
+
+{"libro_id": 1, "direccion_envio": "Calle 123"}
+```
+
 ## Evidencia de ejecución (log de auditoría)
 
 `BancoNacionalProcesador.pagar()` (en `infra/gateways.py`) registra cada
@@ -124,3 +155,7 @@ a través de la vista de Compra Rápida.
 1. Captura de consola en modo `PAYMENT_PROVIDER=MOCK` mostrando `[DEBUG] Mock Payment...`.
 2. Código de `infra/factories.py` y `domain/builders.py`.
 3. Reflexión sobre por qué `OrdenBuilder` reduce el riesgo de errores frente a construir la orden directamente en la vista.
+
+**Tutorial03:**
+1. `pagos_locales_fabiola_valencia.log` mostrando que la compra hecha por API también descuenta inventario y genera log (misma lógica que la vista HTML).
+2. Captura de pantalla de un `POST` a `/api/v1/comprar/` desde Postman o la Browsable API de DRF.

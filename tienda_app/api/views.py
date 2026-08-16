@@ -5,37 +5,66 @@ from django.views import View
 from django.views.decorators.csrf import csrf_exempt
 from django.http import JsonResponse
 
+from rest_framework import status
+from rest_framework.generics import ListAPIView
+from rest_framework.response import Response
+from rest_framework.views import APIView
+
 from ..infra.factories import PaymentFactory
 from ..models import Libro
 from ..services import CompraService
+from .serializers import LibroSerializer, OrdenInputSerializer
 
 
-@method_decorator(csrf_exempt, name="dispatch")
-class CompraAPIView(View):
-    """Endpoint JSON que reutiliza el mismo Service Layer que las vistas web."""
+class LibroListAPIView(ListAPIView):
+    """GET /api/v1/libros/ — expone el catálogo con su stock_actual, para
+    verificar por API que el inventario refleja los cambios de una compra."""
+
+    queryset = Libro.objects.all()
+    serializer_class = LibroSerializer
+
+
+class CompraAPIView(APIView):
+    """Endpoint para procesar compras vía JSON, usando DRF.
+    POST /api/v1/comprar/
+    Payload: {"libro_id": 1, "direccion_envio": "Calle 123"}
+
+    Reutiliza el mismo CompraService que ya usa la vista HTML de Compra
+    Rápida: la lógica de negocio no cambia, solo cambia quién la llama.
+    """
 
     def post(self, request):
-        try:
-            payload = json.loads(request.body or "{}")
-        except json.JSONDecodeError:
-            return JsonResponse({"error": "JSON inválido."}, status=400)
+        # 1. Validación de datos de entrada (Adapter)
+        serializer = OrdenInputSerializer(data=request.data)
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
-        libro_id = payload.get("libro_id")
-        if not libro_id:
-            return JsonResponse({"error": "libro_id es requerido."}, status=400)
+        datos = serializer.validated_data
 
-        servicio = CompraService(procesador_pago=PaymentFactory.get_processor())
         try:
-            total = servicio.ejecutar_compra(
-                libro_id,
-                cantidad=payload.get("cantidad", 1),
-                direccion=payload.get("direccion", ""),
+            # 2. Inyección de Dependencias (Factory)
+            gateway = PaymentFactory.get_processor()
+
+            # 3. Ejecución de Lógica de Negocio (Service Layer)
+            servicio = CompraService(procesador_pago=gateway)
+            resultado = servicio.ejecutar_compra(
+                libro_id=datos["libro_id"],
+                direccion=datos["direccion_envio"],
                 usuario=request.user if request.user.is_authenticated else None,
             )
-        except ValueError as error:
-            return JsonResponse({"error": str(error)}, status=400)
 
-        return JsonResponse({"total": str(total)})
+            return Response(
+                {"estado": "exito", "mensaje": f"Orden creada. Total: {resultado}"},
+                status=status.HTTP_201_CREATED,
+            )
+        except ValueError as e:
+            # Errores de negocio (ej: Sin stock)
+            return Response({"error": str(e)}, status=status.HTTP_409_CONFLICT)
+        except Exception:
+            # Errores inesperados
+            return Response(
+                {"error": "Error interno"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
 
 
 @method_decorator(csrf_exempt, name="dispatch")

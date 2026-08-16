@@ -1,6 +1,6 @@
 from django.urls import path
 
-from .api.views import CarritoCompraAPIView, CompraAPIView
+from .api.views import CarritoCompraAPIView, CompraAPIView, LibroListAPIView
 from .views import CompraRapidaView, CompraView
 
 urlpatterns = [
@@ -8,4 +8,5 @@ urlpatterns = [
     path("compra/<int:libro_id>/", CompraView.as_view(), name="finalizar_compra"),
     path("api/v1/comprar/", CompraAPIView.as_view(), name="api_comprar"),
     path("api/v1/comprar-carrito/", CarritoCompraAPIView.as_view(), name="api_comprar_carrito"),
+    path("api/v1/libros/", LibroListAPIView.as_view(), name="api_libros"),
 ]

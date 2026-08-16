@@ -9,6 +9,12 @@ class Libro(models.Model):
     def __str__(self):
         return self.titulo
 
+    @property
+    def stock_actual(self):
+        """Campo calculado: delega en Inventario, no duplica el dato."""
+        inventario = getattr(self, "inventario", None)
+        return inventario.cantidad if inventario else 0
+
 
 class Inventario(models.Model):
     libro = models.OneToOneField(Libro, on_delete=models.CASCADE, related_name="inventario")

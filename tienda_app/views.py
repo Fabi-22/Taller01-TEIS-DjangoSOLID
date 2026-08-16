@@ -22,7 +22,8 @@ class CompraRapidaView(View):
                 cantidad=1,
                 usuario=request.user if request.user.is_authenticated else None,
             )
-            contexto = {"mensaje_exito": f"Compra exitosa. Total: ${total}", "total": total}
+            contexto = self.setup_service().obtener_detalle_producto(libro_id)
+            contexto["mensaje_exito"] = f"Compra exitosa. Total: ${total}"
             return render(request, self.template_name, contexto)
         except ValueError as error:
             contexto = self.setup_service().obtener_detalle_producto(libro_id)
